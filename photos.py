@@ -1,14 +1,18 @@
 #!/usr/bin/python
 
-import PIL
-import _imaging
-import Image
-from pyexiv2 import metadata
-import sqlite3
 from optparse import OptionParser
 import sys
 import os
 import imghdr
+
+# Python Image Library
+import PIL
+import _imaging
+import Image
+
+# pyexiv2
+from pyexiv2 import metadata
+
 
 def copy_image(source, target, target_size, image_type):
   # resize image
