@@ -60,7 +60,7 @@ def process_directory_source_walk(options, source_dir, source_filenames):
       if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
-      copy_image(source_path, target_path, target_size, image_type)
+      copy_image(source_path, target_path, tuple(map(int, target_size.split('x'))), image_type)
 
 def process_directory_target_walk(args, target_dir, target_filenames):
   (options, target_size) = args
@@ -87,9 +87,9 @@ def main(argv=None):
     argv = sys.argv
 
   parser = OptionParser()
-  parser.add_option("--directory-source", dest="directory_source",
+  parser.add_option("-s", "--directory-source", dest="directory_source",
                     help="manage photos in this directory", metavar="PATH")
-  parser.add_option("--directory-target", dest="directory_target",
+  parser.add_option("-t", "--directory-target", dest="directory_target",
                     help="directory where copies will be stored", metavar="PATH")
   parser.add_option("--add-target-size", dest="target_sizes", action="append",
                     help="Add a size to generate", metavar="WIDTHxHEIGHT")
