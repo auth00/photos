@@ -48,7 +48,7 @@ def process_directory_source_walk(options, source_dir, source_filenames):
     (source_reldir,none) = os.path.split(source_relpath)
 
     for target_size in options.target_sizes:
-      target_reldir = os.path.join(target_size, source_reldir)
+      target_reldir = os.path.join(target_size['directory'], source_reldir)
 
       target_dir = os.path.join(options.directory_target, target_reldir)
       target_path = os.path.join(target_dir, source_filename)
@@ -60,7 +60,7 @@ def process_directory_source_walk(options, source_dir, source_filenames):
       if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
-      copy_image(source_path, target_path, tuple(map(int, target_size.split('x'))), image_type)
+      copy_image(source_path, target_path, (target_size['width'], target_size['height']), image_type)
 
 def process_directory_target_walk(args, target_dir, target_filenames):
   (options, target_size) = args
@@ -72,7 +72,7 @@ def process_directory_target_walk(args, target_dir, target_filenames):
     if not os.path.isfile(target_path): 
       continue
 
-    source_relpath = os.path.relpath(target_path, os.path.join(options.directory_target, target_size))
+    source_relpath = os.path.relpath(target_path, os.path.join(options.directory_target, target_size['directory']))
     
     # Remove the file if it is removed from the source directory
     if not os.path.exists(os.path.join(options.directory_source, source_relpath)):
@@ -92,7 +92,7 @@ def main(argv=None):
   parser.add_option("-t", "--directory-target", dest="directory_target",
                     help="directory where copies will be stored", metavar="PATH")
   parser.add_option("--add-target-size", dest="target_sizes", action="append",
-                    help="Add a size to generate", metavar="WIDTHxHEIGHT")
+                    help="Add a size to generate", metavar="WIDTHxHEIGHT[:DIRECTORY]")
 
   (options, args) = parser.parse_args()
 
@@ -102,9 +102,27 @@ def main(argv=None):
   if options.directory_target is None:
     sys.exit("--directory-target is required")
 
-  # Add some target sizes if none are selected
+  # Add a default target size if none is provided
   if options.target_sizes is None:
-    options.target_sizes = ['1600x1200', '1024x768']
+    options.target_sizes = [{'width': 1600, 'height': 1200, 'directory': '1600x1200'}]
+  # Or parse the
+  else:
+    i = 0;
+    for target_size in options.target_sizes[:]:
+      try:
+        (size, directory) = target_size.split(':')
+      except:
+        directory = size = target_size
+      if len(directory) == 0:
+        sys.exit("--add-target-size argument %s is not a valid target size" % target_size)
+      try:
+        (width, height) = size.split('x')
+        width = int(width)
+        height = int(height)
+      except:
+        sys.exit("--add-target-size argument %s is not a valid target size" % target_size)
+      options.target_sizes[i] = {'width': width, 'height': height, 'directory': directory}
+      i += 1
 
   # Evaluate originals and copies directories
   options.directory_source = os.path.realpath(options.directory_source)
@@ -117,11 +135,11 @@ def main(argv=None):
     sys.exit("--directory-target is not a valid directory")
 
   if os.path.commonprefix([options.directory_source, options.directory_target]) == options.directory_source:
-    sys.exit("--directory-target can not by a directory inside --directory-source")
+    sys.exit("--directory-target can not be a directory inside --directory-source")
 
   os.path.walk(options.directory_source, process_directory_source_walk, options)
   for target_size in options.target_sizes:
-    os.path.walk(os.path.join(options.directory_target, target_size), process_directory_target_walk, [options, target_size])
+    os.path.walk(os.path.join(options.directory_target, target_size['directory']), process_directory_target_walk, [options, target_size])
     
 
 if __name__ == "__main__":
