@@ -37,9 +37,15 @@ def process_directory_source_walk(options, source_dir, source_filenames):
 
     # Make some checks to see this is a supported file
     source_path = os.path.join(source_dir, source_filename)
-    if not os.path.isfile(source_path): 
+    if os.path.isdir(source_path): 
       continue
-    image_type = imghdr.what(source_path)
+    if not os.path.isfile(source_path): 
+      #print source_path.decode('utf-8').encode('utf-8', 'ignore')
+      continue
+    try:
+      image_type = imghdr.what(source_path)
+    except:
+      continue
     if image_type is None or image_type not in ['jpeg', 'png']:
       continue
 
@@ -60,7 +66,11 @@ def process_directory_source_walk(options, source_dir, source_filenames):
       if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
-      copy_image(source_path, target_path, (target_size['width'], target_size['height']), image_type)
+      try:
+        copy_image(source_path, target_path, (target_size['width'], target_size['height']), image_type)
+      except:
+        print source_path
+        continue
 
 def process_directory_target_walk(args, target_dir, target_filenames):
   (options, target_size) = args
@@ -137,7 +147,7 @@ def main(argv=None):
   if os.path.commonprefix([options.directory_source, options.directory_target]) == options.directory_source:
     sys.exit("--directory-target can not be a directory inside --directory-source")
 
-  os.path.walk(options.directory_source, process_directory_source_walk, options)
+  os.path.walk(unicode(options.directory_source), process_directory_source_walk, options)
   for target_size in options.target_sizes:
     os.path.walk(os.path.join(options.directory_target, target_size['directory']), process_directory_target_walk, [options, target_size])
     
