@@ -13,6 +13,7 @@ import Image
 # pyexiv2
 from pyexiv2 import metadata
 
+import datetime
 
 def copy_image(source, target, target_size, image_type):
   # resize image
@@ -40,7 +41,6 @@ def process_directory_source_walk(options, source_dir, source_filenames):
     if os.path.isdir(source_path): 
       continue
     if not os.path.isfile(source_path): 
-      #print source_path.decode('utf-8').encode('utf-8', 'ignore')
       continue
     try:
       image_type = imghdr.what(source_path)
@@ -86,11 +86,17 @@ def process_directory_target_walk(args, target_dir, target_filenames):
     
     # Remove the file if it is removed from the source directory
     if not os.path.exists(os.path.join(options.directory_source, source_relpath)):
-      os.remove(target_path)
+      if options.no_delete:
+        print 'would remove file ', target_path
+      else:
+        os.remove(target_path)
 
   # Remove directory if empty
   if not os.listdir(target_dir):
-    os.rmdir(target_dir)
+    if options.no_delete:
+      print 'would remove directory ', target_dir
+    else:
+      os.rmdir(target_dir)
 
 def main(argv=None):
   if argv is None:
@@ -98,11 +104,17 @@ def main(argv=None):
 
   parser = OptionParser()
   parser.add_option("-s", "--directory-source", dest="directory_source",
-                    help="manage photos in this directory", metavar="PATH")
+                    help="Manage originals in this directory", metavar="PATH")
   parser.add_option("-t", "--directory-target", dest="directory_target",
-                    help="directory where copies will be stored", metavar="PATH")
+                    help="Directory where copies will be stored", metavar="PATH")
+  parser.add_option("--working-directory", dest="working_directory",
+                    help="This will be the working directory with copies [NOT YET IMPLEMENTED]", metavar="WIDTHxHEIGHT[:DIRECTORY]")
   parser.add_option("--add-target-size", dest="target_sizes", action="append",
                     help="Add a size to generate", metavar="WIDTHxHEIGHT[:DIRECTORY]")
+  parser.add_option("--add-subdirectory", dest="subdirectories", action="append",
+                    help="Limit to provided subdirectories", metavar="SUBPATH")
+  parser.add_option("--no-delete", action="store_true", dest="no_delete", default=False,
+                    help="Print what would be removed instead of removing")
 
   (options, args) = parser.parse_args()
 
@@ -134,6 +146,27 @@ def main(argv=None):
       options.target_sizes[i] = {'width': width, 'height': height, 'directory': directory}
       i += 1
 
+  if options.working_directory:
+    try:
+      (size, directory) = options.working_directory.split(':')
+    except:
+      directory = size = options.working_directory
+    if len(directory) == 0:
+      sys.exit("--working-directory argument %s is not valid" % options.working_directory)
+    try:
+      (width, height) = size.split('x')
+      width = int(width)
+      height = int(height)
+    except:
+      sys.exit("--working-directory argument %s is not valid" % options.working_directory)
+    options.working_directory = {'width': width, 'height': height, 'directory': directory}
+
+  if options.subdirectories:
+    for (i, subdirectory) in enumerate(options.subdirectories):
+      if subdirectory == '-YEAR-':
+        now = datetime.datetime.now()
+        options.subdirectories[i] = str(now.year)
+
   # Evaluate originals and copies directories
   options.directory_source = os.path.realpath(options.directory_source)
   options.directory_target = os.path.realpath(options.directory_target)
@@ -147,9 +180,15 @@ def main(argv=None):
   if os.path.commonprefix([options.directory_source, options.directory_target]) == options.directory_source:
     sys.exit("--directory-target can not be a directory inside --directory-source")
 
-  os.path.walk(unicode(options.directory_source), process_directory_source_walk, options)
-  for target_size in options.target_sizes:
-    os.path.walk(os.path.join(options.directory_target, target_size['directory']), process_directory_target_walk, [options, target_size])
+  if options.subdirectories:
+    for subdirectory in options.subdirectories:
+      os.path.walk(unicode(os.path.join(options.directory_source, subdirectory)), process_directory_source_walk, options)
+      for target_size in options.target_sizes:
+        os.path.walk(os.path.join(options.directory_target, target_size['directory'], subdirectory), process_directory_target_walk, [options, target_size])
+  else:
+    os.path.walk(unicode(options.directory_source), process_directory_source_walk, options)
+    for target_size in options.target_sizes:
+      os.path.walk(os.path.join(options.directory_target, target_size['directory']), process_directory_target_walk, [options, target_size])
     
 
 if __name__ == "__main__":
