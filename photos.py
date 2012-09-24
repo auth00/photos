@@ -104,17 +104,19 @@ def main(argv=None):
 
   parser = OptionParser()
   parser.add_option("-s", "--directory-source", dest="directory_source",
-                    help="Manage originals in this directory", metavar="PATH")
+                    help="Manage originals in this directory.", metavar="PATH")
   parser.add_option("-t", "--directory-target", dest="directory_target",
-                    help="Directory where copies will be stored", metavar="PATH")
+                    help="Directory where copies will be stored.", metavar="PATH")
   parser.add_option("--working-directory", dest="working_directory",
-                    help="This will be the working directory with copies [NOT YET IMPLEMENTED]", metavar="WIDTHxHEIGHT[:DIRECTORY]")
+                    help="This will be the working directory with copies.", metavar="WIDTHxHEIGHT[:DIRECTORY]")
+  parser.add_option("--import-subdirectory", dest="import_subdirectory",
+                    help="This subdirectory in --directory-source will be used to import new images. Requirred when --working-directory is used.", metavar="DIRECTORY")
   parser.add_option("--add-target-size", dest="target_sizes", action="append",
-                    help="Add a size to generate", metavar="WIDTHxHEIGHT[:DIRECTORY]")
+                    help="Add a size to generate.", metavar="WIDTHxHEIGHT[:DIRECTORY]")
   parser.add_option("--add-subdirectory", dest="subdirectories", action="append",
-                    help="Limit to provided subdirectories", metavar="SUBPATH")
+                    help="Limit to provided subdirectories.", metavar="DIRECTORY")
   parser.add_option("--no-delete", action="store_true", dest="no_delete", default=False,
-                    help="Print what would be removed instead of removing")
+                    help="Print what would be removed instead of removing.")
 
   (options, args) = parser.parse_args()
 
@@ -124,11 +126,7 @@ def main(argv=None):
   if options.directory_target is None:
     sys.exit("--directory-target is required")
 
-  # Add a default target size if none is provided
-  if options.target_sizes is None:
-    options.target_sizes = [{'width': 1600, 'height': 1200, 'directory': '1600x1200'}]
-  # Or parse the
-  else:
+  if options.target_sizes:
     i = 0;
     for target_size in options.target_sizes[:]:
       try:
@@ -152,14 +150,26 @@ def main(argv=None):
     except:
       directory = size = options.working_directory
     if len(directory) == 0:
-      sys.exit("--working-directory argument %s is not valid" % options.working_directory)
+      sys.exit("--working-directory %s is not valid" % options.working_directory)
     try:
       (width, height) = size.split('x')
       width = int(width)
       height = int(height)
     except:
-      sys.exit("--working-directory argument %s is not valid" % options.working_directory)
+      sys.exit("--working-directory %s is not valid" % options.working_directory)
     options.working_directory = {'width': width, 'height': height, 'directory': directory}
+    if options.target_sizes:
+     for target_size in options.target_sizes:
+       if target_size.directory == options.working_directory.directory:
+         sys.exit("--working-directory %s can not be the same as --add-target-size %s" % options.working_directory.directory, target_size.directory)
+    if not options.import_subdirectory:
+      sys.exit("--import-subdirectory is required when --working-copy is used")
+    if not os.path.isdir(os.path.join(options.directory_source, options.import_subdirectory)):
+      sys.exit("--import-subdirectory is not a valid directory")
+
+  # Add a default target size if none is provided
+  if options.target_sizes is None and options.working_directory is None:
+    options.target_sizes = [{'width': 1600, 'height': 1200, 'directory': '1600x1200'}]
 
   if options.subdirectories:
     for (i, subdirectory) in enumerate(options.subdirectories):
@@ -179,6 +189,12 @@ def main(argv=None):
 
   if os.path.commonprefix([options.directory_source, options.directory_target]) == options.directory_source:
     sys.exit("--directory-target can not be a directory inside --directory-source")
+
+  if options.working_directory:
+    for
+    options.working_directory.directory = os.path.realpath(options.working_directory.directory)
+    if os.path.commonprefix([options.directory_source, options.working_directory.directory]) == options.directory_source:
+      sys.exit("--working-directory can not be a directory inside --directory-source")
 
   if options.subdirectories:
     for subdirectory in options.subdirectories:
